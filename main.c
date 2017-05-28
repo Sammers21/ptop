@@ -3,18 +3,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
+#include <locale.h>
 // hash lib
 #include "uthash.h"
 
 #define RELEASE
+//#define LOGS
 
 struct process {
     int pid;
+    int ppid;
+    int cur_child;
     char user_name[50];
     char process_name[1000];
     struct process **child;
-    int cur_child;
     UT_hash_handle hh;
 };
 
@@ -30,18 +32,18 @@ void add_process(int ppid, int pid, char *user_name, char *process_name) {
     struct process *p;
     p = malloc(sizeof(struct process));
     p->pid = pid;
+    p->ppid = ppid;
     p->cur_child = 0;
+    p->child = malloc(sizeof(struct process) * 50);
     strcpy(p->user_name, user_name);
     strcpy(p->process_name, process_name);
     HASH_ADD_INT(processes, pid, p);
 
-    if (ppid != 0) {
-        struct process *to_find;
-        HASH_FIND_INT(processes, &ppid, to_find);
-        if (to_find != NULL) {
-            to_find->child = malloc(sizeof(struct process) * 400);
-            to_find->child[to_find->cur_child++] = p;
-        }
+
+    struct process *to_find;
+    HASH_FIND_INT(processes, &ppid, to_find);
+    if (to_find != NULL) {
+        to_find->child[to_find->cur_child++] = p;
     }
 }
 
@@ -49,6 +51,7 @@ void delete_all() {
     struct process *process1, *tmp;
     HASH_ITER(hh, processes, process1, tmp) {
         HASH_DEL(processes, process1);     /* delete; users advances to next */
+        free(process1->child);
         free(process1);                    /* optional- if you want to free  */
     }
 }
@@ -59,6 +62,51 @@ void print_all() {
         printf("pid %d pname %s uname %s\n", process1->pid, process1->process_name, process1->user_name);
     }
 }
+
+void rec(int *rem, struct process *p, int tabs, int stsize) {
+
+    int space = stsize;
+
+    if (*rem == 0) {
+        return;
+    }
+    (*rem) -= 1;
+
+    for (int j = 0; j < tabs - 1; ++j) {
+        if (space - 4 > 0) {
+            printf("|   ");
+            space -= 4;
+        }
+    }
+
+    if (tabs >= 1) {
+        if (space - 4 > 0) {
+            printf("└───");
+            space -= 4;
+        }
+    }
+    char *c = malloc(sizeof(char *) * (space - 1));
+    strcpy(c, p->process_name);
+    free(c);
+    printf("%s", c);
+    printf("\n");
+
+    for (int i = 0; i < p->cur_child; i++) {
+        rec(rem, p->child[i], tabs + 1, stsize);
+    }
+}
+
+void get_process_list(int rows, int colums) {
+
+    struct process *to_find;
+    int i = 0;
+    HASH_FIND_INT(processes, &i, to_find);
+    int *rem = malloc(sizeof(int *));
+    *rem = rows;
+    rec(rem, to_find, -1, colums);
+
+}
+
 
 char **words(char *text) {
 
@@ -103,14 +151,12 @@ printf("\033[2J"); // Clear screen
 //stty -a
 //ps -efl
 int main() {
+    setlocale(LC_ALL, "");
 
-    char *c = "kek kek2 lkek3   kel4";
-    char **c2 = words(c);
-    for (int i = 0; i < 4; ++i) {
-        printf("%s\n", c2[i]);
-    }
 
     while (1) {
+        delete_all();
+        add_process(-1, 0, "system", "init");
         /**
          * fd[0] read only
          * fd[1] write only
@@ -141,13 +187,15 @@ int main() {
             //parent process
             close(fd_ps[1]);
 
-            char str[5000];
+            char str[4096];
             FILE *psout;
             psout = fdopen(fd_ps[0], "r");
 
             if (psout) {
-                while (fgets(str, 4000, psout) != NULL) {
+                while (fgets(str, 4096, psout) != NULL) {
+#ifdef LOGS
                     printf("%s", str);
+#endif
 
                     char **splt = words(str);
                     if (strcmp(splt[0], "F") == 0)
@@ -164,17 +212,21 @@ int main() {
                         };
                     void add_process(int ppid, int pid, char *user_name, char *process_name)
                      */
+#ifdef  LOGS
                     printf("ppid %s\n", splt[4]);
                     printf("pid %s\n", splt[3]);
                     printf("uname %s\n", splt[2]);
                     printf("pname %s\n", splt[14]);
-                    if(splt[14][strlen(splt[14])-1]=='\n'){
+#endif
+                    if (splt[14][strlen(splt[14]) - 1] == '\n') {
                         splt[14][strlen(splt[14]) - 1] = 0;
                     }
 
-                    add_process(atoi(splt[4]), atoi(splt[4]), splt[2], splt[14]);
+                    add_process(atoi(splt[4]), atoi(splt[3]), splt[2], splt[14]);
 
-
+                    /*  for (int i = 0; i < strlen(splt); ++i) {
+                          free(splt[i]);
+                      }*/
 
                     // add_process()
 
@@ -187,8 +239,16 @@ int main() {
             printf("cant fork");
             exit(-1);
         }
+#ifdef LOGS
         print_all();
-        sleep(100);
+#endif
+        int *hw = tsize();
+         get_process_list(hw[0], hw[1]);
+        //get_process_list(100, 100);
+        sleep(1);
+        printf("\033[2J");
+        free(hw);
+
     }
 
     return 0;

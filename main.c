@@ -48,11 +48,11 @@ void add_process(int ppid, int pid, char *user_name, char *process_name) {
 }
 
 void delete_all() {
-    struct process *process1, *tmp;
-    HASH_ITER(hh, processes, process1, tmp) {
-        HASH_DEL(processes, process1);     /* delete; users advances to next */
-        free(process1->child);
-        free(process1);                    /* optional- if you want to free  */
+    struct process *prc, *tmp;
+    HASH_ITER(hh, processes, prc, tmp) {
+        HASH_DEL(processes, prc);     /* delete; users advances to next */
+        free(prc->child);
+        free(prc);                    /* optional- if you want to free  */
     }
 }
 
@@ -85,9 +85,9 @@ void rec(int *rem, struct process *p, int tabs, int stsize) {
             space -= 4;
         }
     }
-    char *c = malloc(sizeof(char *) * (space ));
-    strncpy(c, p->process_name, space );
-    c[space ] = 0;
+    char *c = malloc(sizeof(char *) * (space));
+    strncpy(c, p->process_name, space);
+    c[space] = 0;
     printf("%s", c);
     printf("\n");
     free(c);
@@ -141,16 +141,13 @@ char **words(char *text) {
  */
 int *tsize();
 /*
-printf("\033[XA"); // Move up X lines;
-printf("\033[XB"); // Move down X lines;
-printf("\033[XC"); // Move right X column;
-printf("\033[XD"); // Move left X column;
-printf("\033[2J"); // Clear screen
+    printf("\033[XA"); // Move up X lines;
+    printf("\033[XB"); // Move down X lines;
+    printf("\033[XC"); // Move right X column;
+    printf("\033[XD"); // Move left X column;
+    printf("\033[2J"); // Clear screen
  */
-//man console_codes
 
-//stty -a
-//ps -efl
 int main() {
     setlocale(LC_ALL, "");
 
@@ -202,17 +199,6 @@ int main() {
                     if (strcmp(splt[0], "F") == 0)
                         continue;
 
-                    /*
-                      struct process {
-                            int pid;
-                            char *user_name;
-                            char *process_name;
-                            struct process **child;
-                            int cur_child;
-                            UT_hash_handle hh;
-                        };
-                    void add_process(int ppid, int pid, char *user_name, char *process_name)
-                     */
 #ifdef  LOGS
                     printf("ppid %s\n", splt[4]);
                     printf("pid %s\n", splt[3]);
@@ -224,12 +210,6 @@ int main() {
                     }
 
                     add_process(atoi(splt[4]), atoi(splt[3]), splt[2], splt[14]);
-
-                    /*  for (int i = 0; i < strlen(splt); ++i) {
-                          free(splt[i]);
-                      }*/
-
-                    // add_process()
 
                 }
                 fclose(psout);
@@ -245,7 +225,6 @@ int main() {
 #endif
         int *hw = tsize();
         get_process_list(hw[0], hw[1]);
-        //get_process_list(100, 100);
         sleep(1);
         printf("\033[2J");
         free(hw);

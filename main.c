@@ -5,16 +5,46 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+// hash lib
 #include "uthash.h"
 
+#define RELEASE
+
 struct process {
+    int pid;
     char *user_name;
     char *process_name;
-    int pid;
-    struct process *childs;
+    struct process **child;
+    int cur_child;
+    UT_hash_handle hh;
 };
 
+//init hash
+struct process *processes = NULL;    /* important! initialize to NULL */
+
 char **str_split(char *a_str, const char a_delim);
+
+void fill_screen(char **text);
+
+void add_process(int ppid, int pid, char *user_name, char *process_name) {
+
+    struct process *p;
+    p = malloc(sizeof(struct process));
+    p->pid = pid;
+    p->cur_child = 0;
+    strcpy(p->user_name, user_name);
+    strcpy(p->process_name, process_name);
+    HASH_ADD_INT(processes, pid, p);
+
+    if (ppid != 0) {
+        struct process *to_find;
+        HASH_FIND_INT(processes, &ppid, to_find);
+        if (to_find != NULL) {
+            to_find->child[to_find->cur_child++] = p;
+        }
+    }
+}
 
 /**
  * @return  return array sizeof 2 with [0] - terminal rows count and [1] - terminal columns count
@@ -29,26 +59,10 @@ printf("\033[2J"); // Clear screen
  */
 //man console_codes
 
-void fill_screen(char **text) {
-    int *hw = tsize();
-    //clear screen
-    printf("\033[2J");
-    for (int y = 1; y < hw[0]; ++y) {
-        for (int x = 1; x < hw[1] + 1; ++x) {
-            printf("\033[%d;%dHf%c", y, x, text[y - 1][x - 1]);
-        }
-    }
-
-    free(hw);
-}
-
 //stty -a
 //ps -efl
 int main() {
-
-#ifdef RELEASE
-    while (0) {
-
+    while (1) {
         /**
          * fd[0] read only
          * fd[1] write only
@@ -57,9 +71,8 @@ int main() {
         int fd_ps[2];
 
         int p = pipe(fd_ps);
-        char foo[4096];
 
-        if (p != 0 ) {
+        if (p != 0) {
             printf("cant create pipe");
             exit(-1);
         }
@@ -67,31 +80,29 @@ int main() {
 
         int result = fork();
 
-
         if (result == 0) {
+            close(fd_ps[0]);
             //child process
             //redirect output
+
             dup2(fd_ps[1], STDOUT_FILENO);
-
-            close(fd_ps[0]);
-            close(fd_ps[1]);
-
             execl("/bin/ps", "ps", "-efl", NULL);
             exit(0);
 
         } else if (result > 0) {
             //parent process
-
-
-            FILE *psout = fdopen(fd_ps[0], "r");
-            char *s;
-            do {
-                s = fgets(foo, 4096, psout);
-                printf("%s", s);
-            } while (s != NULL);
-
             close(fd_ps[1]);
-            close(fd_ps[0]);
+
+            char str[5000];
+            FILE *psout;
+            psout = fdopen(fd_ps[0], "r");
+
+            if (psout) {
+                while (fgets(str, 5000, psout) != NULL) {
+                    printf("%s", str);
+                }
+                fclose(psout);
+            }
 
         } else {
             //fork error
@@ -100,7 +111,7 @@ int main() {
         }
         sleep(1);
     }
-#endif
+
     return 0;
 }
 
@@ -210,4 +221,17 @@ char **str_split(char *a_str, const char a_delim) {
     }
 
     return result;
+}
+
+void fill_screen(char **text) {
+    int *hw = tsize();
+    //clear screen
+    printf("\033[2J");
+    for (int y = 1; y < hw[0]; ++y) {
+        for (int x = 1; x < hw[1] + 1; ++x) {
+            printf("\033[%d;%dHf%c", y, x, text[y - 1][x - 1]);
+        }
+    }
+
+    free(hw);
 }

@@ -6,17 +6,25 @@
 #include <string.h>
 #include <assert.h>
 
+
 char **str_split(char *a_str, const char a_delim);
 
-int height();
+/**
+ * @return  return array sizeof 2 with [0] - terminal rows count and [1] - terminal columns count
+ */
+int *tsize();
 
 //stty -a
 //ps -efl
 int main() {
 
-    printf("%d", height());
-    printf("%d", height());
-    printf("%d", height());
+    int *hw = tsize();
+
+    printf("coloumns %d", hw[0]);
+    printf("rows %d", hw[1]);
+
+    free(hw);
+#ifdef Debug
     while (0) {
 
         /**
@@ -77,11 +85,12 @@ int main() {
         }
         sleep(1);
     }
+#endif
 
     return 0;
 }
 
-int height() {
+int *tsize() {
 
     /**
      * fd[0] read only
@@ -122,9 +131,27 @@ int height() {
         FILE *psout = fdopen(fd[0], "r");
         close(fd[1]);
         char *c = fgets(foo, 4096, psout);
+
+        printf("%s", c);
+        printf("%s", c);
+        printf("%s", c);
+
+
         char **splt = str_split(c, ' ');
-        printf("%s%s\n", splt[4], splt[4]);
-        return atoi(fgets(foo, 4096, psout));
+
+        //delete last char ';'
+        splt[4][strlen(splt[4]) - 1] = 0;
+        splt[6][strlen(splt[6]) - 1] = 0;
+
+        int h = atoi(splt[4]);
+        int w = atoi(splt[6]);
+
+        int *pointer = malloc(sizeof(int *) * 2);
+        pointer[0] = h;
+        pointer[1] = w;
+
+        free(splt);
+        return pointer;
 
 
     } else {

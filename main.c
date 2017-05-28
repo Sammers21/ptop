@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -13,8 +11,8 @@
 
 struct process {
     int pid;
-    char *user_name;
-    char *process_name;
+    char user_name[50];
+    char process_name[1000];
     struct process **child;
     int cur_child;
     UT_hash_handle hh;
@@ -41,9 +39,52 @@ void add_process(int ppid, int pid, char *user_name, char *process_name) {
         struct process *to_find;
         HASH_FIND_INT(processes, &ppid, to_find);
         if (to_find != NULL) {
+            to_find->child = malloc(sizeof(struct process) * 400);
             to_find->child[to_find->cur_child++] = p;
         }
     }
+}
+
+void delete_all() {
+    struct process *process1, *tmp;
+    HASH_ITER(hh, processes, process1, tmp) {
+        HASH_DEL(processes, process1);     /* delete; users advances to next */
+        free(process1);                    /* optional- if you want to free  */
+    }
+}
+
+void print_all() {
+    struct process *process1, *tmp;
+    HASH_ITER(hh, processes, process1, tmp) {
+        printf("pid %d pname %s uname %s\n", process1->pid, process1->process_name, process1->user_name);
+    }
+}
+
+char **words(char *text) {
+
+    char **res;
+
+    char *str = malloc(5000);
+    strcpy(str, text);
+
+    int i = 0;
+    char *pch;
+    pch = strtok(str, " ");
+    while (pch != NULL) {
+        i++;
+        pch = strtok(NULL, " ");
+    }
+
+    int g = 0;
+    res = malloc(sizeof(char *) * i);
+    strcpy(str, text);
+    pch = strtok(str, " ");
+    while (pch != NULL) {
+        res[g++] = pch;
+        pch = strtok(NULL, " ");
+    }
+
+    return res;
 }
 
 /**
@@ -62,6 +103,13 @@ printf("\033[2J"); // Clear screen
 //stty -a
 //ps -efl
 int main() {
+
+    char *c = "kek kek2 lkek3   kel4";
+    char **c2 = words(c);
+    for (int i = 0; i < 4; ++i) {
+        printf("%s\n", c2[i]);
+    }
+
     while (1) {
         /**
          * fd[0] read only
@@ -98,8 +146,38 @@ int main() {
             psout = fdopen(fd_ps[0], "r");
 
             if (psout) {
-                while (fgets(str, 5000, psout) != NULL) {
+                while (fgets(str, 4000, psout) != NULL) {
                     printf("%s", str);
+
+                    char **splt = words(str);
+                    if (strcmp(splt[0], "F") == 0)
+                        continue;
+
+                    /*
+                      struct process {
+                            int pid;
+                            char *user_name;
+                            char *process_name;
+                            struct process **child;
+                            int cur_child;
+                            UT_hash_handle hh;
+                        };
+                    void add_process(int ppid, int pid, char *user_name, char *process_name)
+                     */
+                    printf("ppid %s\n", splt[4]);
+                    printf("pid %s\n", splt[3]);
+                    printf("uname %s\n", splt[2]);
+                    printf("pname %s\n", splt[14]);
+                    if(splt[14][strlen(splt[14])-1]=='\n'){
+                        splt[14][strlen(splt[14]) - 1] = 0;
+                    }
+
+                    add_process(atoi(splt[4]), atoi(splt[4]), splt[2], splt[14]);
+
+
+
+                    // add_process()
+
                 }
                 fclose(psout);
             }
@@ -109,7 +187,8 @@ int main() {
             printf("cant fork");
             exit(-1);
         }
-        sleep(1);
+        print_all();
+        sleep(100);
     }
 
     return 0;

@@ -5,7 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "uthash.h"
 
+struct process {
+    char *user_name;
+    char *process_name;
+    int pid;
+    struct process *childs;
+};
 
 char **str_split(char *a_str, const char a_delim);
 
@@ -13,18 +20,33 @@ char **str_split(char *a_str, const char a_delim);
  * @return  return array sizeof 2 with [0] - terminal rows count and [1] - terminal columns count
  */
 int *tsize();
+/*
+printf("\033[XA"); // Move up X lines;
+printf("\033[XB"); // Move down X lines;
+printf("\033[XC"); // Move right X column;
+printf("\033[XD"); // Move left X column;
+printf("\033[2J"); // Clear screen
+ */
+//man console_codes
+
+void fill_screen(char **text) {
+    int *hw = tsize();
+    //clear screen
+    printf("\033[2J");
+    for (int y = 1; y < hw[0]; ++y) {
+        for (int x = 1; x < hw[1] + 1; ++x) {
+            printf("\033[%d;%dHf%c", y, x, text[y - 1][x - 1]);
+        }
+    }
+
+    free(hw);
+}
 
 //stty -a
 //ps -efl
 int main() {
 
-    int *hw = tsize();
-
-    printf("coloumns %d", hw[0]);
-    printf("rows %d", hw[1]);
-
-    free(hw);
-#ifdef Debug
+#ifdef RELEASE
     while (0) {
 
         /**
@@ -37,12 +59,7 @@ int main() {
         int p = pipe(fd_ps);
         char foo[4096];
 
-        //stty process
-        int fd_stty[2];
-        int p2 = pipe(fd_stty);
-
-        if (p != 0 || p2 == 0) {
-
+        if (p != 0 ) {
             printf("cant create pipe");
             exit(-1);
         }
@@ -52,10 +69,7 @@ int main() {
 
 
         if (result == 0) {
-
             //child process
-            printf("hello from child process\n");
-
             //redirect output
             dup2(fd_ps[1], STDOUT_FILENO);
 
@@ -67,8 +81,7 @@ int main() {
 
         } else if (result > 0) {
             //parent process
-            printf("hello from parent process\n");
-            close(fd_ps[1]);
+
 
             FILE *psout = fdopen(fd_ps[0], "r");
             char *s;
@@ -77,6 +90,8 @@ int main() {
                 printf("%s", s);
             } while (s != NULL);
 
+            close(fd_ps[1]);
+            close(fd_ps[0]);
 
         } else {
             //fork error
@@ -86,7 +101,6 @@ int main() {
         sleep(1);
     }
 #endif
-
     return 0;
 }
 
@@ -103,7 +117,6 @@ int *tsize() {
     char foo[4096];
 
     if (p != 0) {
-
         printf("cant create pipe");
         exit(-1);
     }
@@ -126,17 +139,9 @@ int *tsize() {
 
     } else if (result > 0) {
         //parent process
-        close(fd[1]);
 
         FILE *psout = fdopen(fd[0], "r");
-        close(fd[1]);
         char *c = fgets(foo, 4096, psout);
-
-        printf("%s", c);
-        printf("%s", c);
-        printf("%s", c);
-
-
         char **splt = str_split(c, ' ');
 
         //delete last char ';'
@@ -151,6 +156,9 @@ int *tsize() {
         pointer[1] = w;
 
         free(splt);
+        close(fd[0]);
+        close(fd[1]);
+
         return pointer;
 
 

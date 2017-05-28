@@ -85,11 +85,12 @@ void rec(int *rem, struct process *p, int tabs, int stsize) {
             space -= 4;
         }
     }
-    char *c = malloc(sizeof(char *) * (space - 1));
-    strcpy(c, p->process_name);
-    free(c);
+    char *c = malloc(sizeof(char *) * (space ));
+    strncpy(c, p->process_name, space );
+    c[space ] = 0;
     printf("%s", c);
     printf("\n");
+    free(c);
 
     for (int i = 0; i < p->cur_child; i++) {
         rec(rem, p->child[i], tabs + 1, stsize);
@@ -243,7 +244,7 @@ int main() {
         print_all();
 #endif
         int *hw = tsize();
-         get_process_list(hw[0], hw[1]);
+        get_process_list(hw[0], hw[1]);
         //get_process_list(100, 100);
         sleep(1);
         printf("\033[2J");
